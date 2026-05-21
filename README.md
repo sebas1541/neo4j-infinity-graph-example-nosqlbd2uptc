@@ -15,6 +15,21 @@ consultas". Cada bloque de código se puede copiar y pegar tal cual.
 > Los scripts son `bash` y **NO** funcionan en PowerShell, CMD ni Git Bash.
 > La forma oficial y soportada es **WSL 2 + Ubuntu + Docker Desktop**.
 
+> ### ¿Por qué Neo4j "normal" y no Infinigraph?
+>
+> Esta demo usa **Neo4j Community Edition** corriendo en local con
+> Docker — **gratis, sin arrendar máquina ni servicio cloud**. No
+> levantamos AuraDB ni un clúster Enterprise porque para 22 personas y
+> 4 empresas es overkill total.
+>
+> Si tienes curiosidad por **Neo4j Infinigraph** (la arquitectura
+> distribuida que Neo4j lanzó en septiembre de 2025 para grafos de
+> 100 TB+), mira el [Apéndice — Usar Neo4j Infinigraph](#10-apéndice--usar-neo4j-infinigraph-opcional).
+> Es esencialmente lo mismo, sólo que **distribuido en clúster** en vez
+> de un solo nodo. **El Cypher es idéntico**, así que esta demo se
+> traduce 1:1 si algún día quieres saltar a producción a escala
+> empresarial.
+
 ---
 
 ## Tabla de contenidos
@@ -28,6 +43,7 @@ consultas". Cada bloque de código se puede copiar y pegar tal cual.
 7. [Lista de comandos](#7-lista-de-comandos)
 8. [Tips para el Neo4j Browser](#8-tips-para-el-neo4j-browser)
 9. [Troubleshooting](#9-troubleshooting)
+10. [Apéndice — Usar Neo4j Infinigraph (opcional)](#10-apéndice--usar-neo4j-infinigraph-opcional)
 
 ---
 
@@ -609,3 +625,116 @@ vuelve a intentar.
 
 Re-ejecuta `cypher/00_clean.cypher` + `cypher/01_create_demo_graph.cypher`
 contra la base ya en marcha.
+
+---
+
+## 10. Apéndice — Usar Neo4j Infinigraph (opcional)
+
+**Neo4j Infinigraph** es la nueva arquitectura distribuida que Neo4j
+anunció en **septiembre de 2025** y que ya está en GA. Está pensada
+para grafos de **100 TB+**, fusiona cargas operacionales (OLTP) y
+analíticas (OLAP) en un mismo sistema, y es la base que Neo4j está
+empujando para **GraphRAG y agentes con IA** a gran escala.
+
+Para esta demo de clase **no aporta nada nuevo en cuanto a sintaxis**:
+el lenguaje sigue siendo Cypher, los mismos `MATCH`, `CREATE`,
+`MERGE`, `shortestPath` funcionan igual. Lo único que cambia es que
+Infinigraph **distribuye el grafo entre varios nodos** de un clúster
+en vez de tenerlo en una sola máquina. Para 22 personas y 4 empresas,
+Community Edition local es más que suficiente.
+
+> Resumen: Neo4j Community (lo que usa este repo) e Infinigraph son
+> **esencialmente lo mismo**, sólo que Infinigraph es la versión "a
+> escala", distribuida y multi-nodo. Si aprendes Cypher acá, ya sabes
+> Cypher para Infinigraph.
+
+### Si quieres probar Infinigraph "en serio"
+
+Hay dos caminos. Ninguno es gratis para uso real.
+
+#### Opción A — Neo4j AuraDB (cloud, lo más fácil)
+
+AuraDB es la nube oficial de Neo4j. El soporte de Infinigraph en Aura
+está en rollout (al momento de escribir esto, **mayo de 2026**, depende
+del plan y la región).
+
+1. Crea cuenta en <https://console.neo4j.io>.
+2. **Create Instance** → elige un plan que soporte Infinigraph
+   (Aura Professional o Enterprise — las tiers gratis **no** lo
+   incluyen).
+3. Cuando esté lista te dan:
+   - URL Bolt: `neo4j+s://xxxxxxx.databases.neo4j.io`
+   - Usuario: `neo4j`
+   - Password generada — **descárgala como `.txt`**, sólo se muestra
+     una vez.
+4. Conecta desde tu terminal con el mismo `cypher-shell`:
+
+   ```bash
+   cypher-shell -a "neo4j+s://xxxxxxx.databases.neo4j.io" \
+                -u neo4j -p "<tu_password>"
+   ```
+
+5. Carga el mismo seed de este repo:
+
+   ```bash
+   cypher-shell -a "<URL>" -u neo4j -p "<password>" < cypher/00_clean.cypher
+   cypher-shell -a "<URL>" -u neo4j -p "<password>" < cypher/01_create_demo_graph.cypher
+   ```
+
+6. Para abrir el Browser web: <https://console.neo4j.io> → tu instancia
+   → **Open with Workspace**.
+
+**Costo:** los planes con Infinigraph parten desde ~USD 65/mes. Para
+una clase es overkill, pero está bien si quieres ver el dashboard
+cloud, métricas, backups automáticos, etc.
+
+#### Opción B — Neo4j Enterprise Edition self-managed (Docker)
+
+Neo4j publica `neo4j:5-enterprise`. Pero Infinigraph **brilla con
+clúster**, no con un sólo contenedor.
+
+Lo mínimo para un PoC:
+
+- Aceptar la licencia Enterprise (**gratis para desarrollo**, de pago
+  para producción): <https://neo4j.com/licensing/>
+- Levantar **3+ contenedores Neo4j** en modo cluster con property
+  sharding habilitado.
+- Variables de entorno tipo:
+
+  ```yaml
+  NEO4J_ACCEPT_LICENSE_AGREEMENT: "yes"
+  NEO4J_dbms_mode: "CORE"
+  NEO4J_causal__clustering_minimum__core__cluster__size__at__formation: "3"
+  NEO4J_causal__clustering_initial__discovery__members: "neo4j1:5000,neo4j2:5000,neo4j3:5000"
+  # Property sharding (parte de Infinigraph)
+  NEO4J_dbms_cluster_property__sharding_enabled: "true"
+  ```
+
+- Documentación oficial:
+  - [Neo4j Operations Manual — Clustering](https://neo4j.com/docs/operations-manual/current/clustering/)
+  - [Anuncio oficial de Infinigraph (Neo4j Blog)](https://neo4j.com/blog/graph-database/infinigraph-scalable-architecture/)
+
+Es **bastante más laborioso** que este `docker-compose.yml` de un solo
+servicio. No tiene sentido para una clase, pero queda como referencia
+si en el futuro montas una prueba de concepto a escala real.
+
+### TL;DR — qué usar cuándo
+
+| Opción | Costo | Setup | Recomendado para |
+| ------ | ----- | ----- | ---------------- |
+| **Community local (este repo)** | $0 | 1 comando | Esta clase, prototipos, aprender Cypher |
+| **AuraDB Free Tier** | $0 | Web UI | Probar el cloud (sin Infinigraph) |
+| **AuraDB Professional + Infinigraph** | ~$65+/mes | Web UI | Demos cloud con Infinigraph |
+| **Enterprise self-managed + cluster** | $0 dev / $$$ prod | Multi-contenedor + config | Equipos con infra propia y > 1 TB de grafo |
+
+**Lo importante:** el código Cypher que está en `cypher/*.cypher`
+**funciona idéntico en las cuatro opciones**. Migrar de Community a
+Infinigraph no requiere cambiar las consultas, sólo el motor de abajo.
+
+### Lecturas adicionales (en inglés)
+
+- [Neo4j Launches Infinigraph — PR Newswire (sept. 2025)](https://www.prnewswire.com/news-releases/neo4j-launches-infinigraph-the-most-scalable-graph-database-for-unified-operational-and-analytical-workloads-at-100tb-scale-302545785.html)
+- [Infinigraph: A Bold Play for Agentic AI — Futurum Group](https://futurumgroup.com/insights/neo4j-infinigraph-makes-a-bold-play-for-the-future-of-ai/)
+- [Infinigraph Is GA — Neo4j Online Community](https://community.neo4j.com/t/infinigraph-is-ga-neo4j-s-answer-to-graphs-at-real-scale/76415)
+- [Neo4j unveils Infinigraph — InfoWorld](https://www.infoworld.com/article/4051374/neo4j-unveils-infinigraph-to-merge-oltp-and-olap-for-agentic-ai.html)
+- [Neo4j Aura Documentation](https://neo4j.com/docs/aura/)
