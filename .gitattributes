@@ -1,0 +1,10 @@
+# Forzar line endings LF al hacer checkout, independiente del SO.
+# Crítico para usuarios de Windows/WSL: evita que los scripts bash
+# se rompan con "bad interpreter: /usr/bin/env^M" por \r\n.
+* text=auto eol=lf
+
+*.sh     text eol=lf
+*.cypher text eol=lf
+*.yml    text eol=lf
+*.yaml   text eol=lf
+*.md     text eol=lf

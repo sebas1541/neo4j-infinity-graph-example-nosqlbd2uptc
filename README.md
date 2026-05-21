@@ -9,28 +9,36 @@ Si nunca has tocado Neo4j: este README te lleva paso a paso desde
 "clonar el repo" hasta "tener el grafo cargado y probar todas las
 consultas". Cada bloque de código se puede copiar y pegar tal cual.
 
+> ### ¿Estás en Windows?
+>
+> **Lee primero la [sección 2 — Windows con WSL 2](#2-windows-con-wsl-2-recomendado).**
+> Los scripts son `bash` y **NO** funcionan en PowerShell, CMD ni Git Bash.
+> La forma oficial y soportada es **WSL 2 + Ubuntu + Docker Desktop**.
+
 ---
 
 ## Tabla de contenidos
 
 1. [Requisitos](#1-requisitos)
-2. [Quick start (TL;DR)](#2-quick-start-tldr)
-3. [Estructura del proyecto](#3-estructura-del-proyecto)
-4. [El dataset](#4-el-dataset)
-5. [Walkthrough — probar el ejemplo paso a paso](#5-walkthrough--probar-el-ejemplo-paso-a-paso)
-6. [Lista de comandos](#6-lista-de-comandos)
-7. [Tips para el Neo4j Browser](#7-tips-para-el-neo4j-browser)
-8. [Troubleshooting](#8-troubleshooting)
+2. [Windows con WSL 2 (recomendado)](#2-windows-con-wsl-2-recomendado)
+3. [Quick start (TL;DR)](#3-quick-start-tldr)
+4. [Estructura del proyecto](#4-estructura-del-proyecto)
+5. [El dataset](#5-el-dataset)
+6. [Walkthrough — probar el ejemplo paso a paso](#6-walkthrough--probar-el-ejemplo-paso-a-paso)
+7. [Lista de comandos](#7-lista-de-comandos)
+8. [Tips para el Neo4j Browser](#8-tips-para-el-neo4j-browser)
+9. [Troubleshooting](#9-troubleshooting)
 
 ---
 
 ## 1. Requisitos
 
-| Herramienta       | Versión mínima | Cómo verificar              |
-| ----------------- | -------------- | --------------------------- |
-| Docker Engine     | 20.x           | `docker --version`          |
-| Docker Compose v2 | 2.x            | `docker compose version`    |
-| macOS / Linux     | cualquiera     | (los scripts son `bash`)    |
+| Herramienta       | Versión mínima  | Cómo verificar / notas                            |
+| ----------------- | --------------- | ------------------------------------------------- |
+| Docker Engine     | 20.x            | `docker --version`                                |
+| Docker Compose v2 | 2.x             | `docker compose version`                          |
+| macOS / Linux     | cualquiera      | Los scripts son `bash` y corren directo           |
+| **Windows**       | **WSL 2 + Ubuntu** | **Ver [sección 2](#2-windows-con-wsl-2-recomendado)** |
 
 Verifica también que **el daemon de Docker esté corriendo** antes de
 empezar:
@@ -45,16 +53,151 @@ Puertos que se usan en `localhost`: **`7474`** (Browser) y **`7687`**
 
 ---
 
-## 2. Quick start (TL;DR)
+## 2. Windows con WSL 2 (recomendado)
+
+Si estás en Windows, **no intentes correr esto con PowerShell, CMD ni
+Git Bash**. Los scripts del proyecto son `bash` puro y dependen de
+rutas tipo Unix, ejecución directa de binarios, etc.
+
+La forma oficial es **WSL 2 + Ubuntu + Docker Desktop con backend WSL
+2**. Buena noticia: Docker Desktop en Windows **ya usa WSL 2
+internamente**, así que esto no es un workaround, es el camino
+soportado por Docker.
+
+### Paso 1 — Instalar WSL 2
+
+Abre **PowerShell como Administrador** (click derecho en el menú de
+inicio → "Ejecutar como administrador") y ejecuta:
+
+```powershell
+wsl --install
+```
+
+Esto:
+
+- Habilita la característica WSL en Windows
+- Instala el kernel de WSL 2
+- Instala **Ubuntu** por defecto
+
+**Reinicia el PC** cuando termine.
+
+Si ya tenías WSL 1 instalado:
+
+```powershell
+wsl --set-default-version 2
+wsl --install -d Ubuntu
+```
+
+### Paso 2 — Configurar Ubuntu
+
+Después de reiniciar, Ubuntu se abre solo. Te pide crear:
+
+- **Usuario** (puede ser cualquier cosa, ej. `sebastian`)
+- **Password** — NO es la de Windows, es nueva, sirve para `sudo`
+  dentro de Ubuntu
+
+Dentro de la terminal de Ubuntu, actualiza paquetes e instala lo
+mínimo:
 
 ```bash
-cd /Users/sebas1541/Projects/electiva2
+sudo apt update && sudo apt upgrade -y
+sudo apt install -y git curl
+```
+
+### Paso 3 — Instalar Docker Desktop con backend WSL 2
+
+1. Descarga **Docker Desktop**: <https://www.docker.com/products/docker-desktop/>
+2. Durante la instalación, **marca "Use WSL 2 instead of Hyper-V"**.
+3. Termina la instalación y abre Docker Desktop.
+4. Espera a que la ballenita (taskbar) se ponga **verde**.
+5. Ve a **Settings → Resources → WSL Integration**.
+6. Activa el toggle de tu distro **Ubuntu**.
+7. Click en **Apply & Restart**.
+
+Verifica desde la terminal de Ubuntu (no de PowerShell):
+
+```bash
+docker --version          # Debe imprimir Docker version 2x.x.x
+docker compose version    # Docker Compose version v2.x.x
+docker info               # NO debe dar "Cannot connect to the Docker daemon"
+```
+
+Si `docker info` falla → abre Docker Desktop en Windows y espera a
+que la ballenita esté verde, luego reintenta.
+
+### Paso 4 — Clonar el repo DENTRO de WSL
+
+> **MUY importante:** clona en el filesystem de WSL (`~/`),
+> **NO** en `/mnt/c/...`. La diferencia de rendimiento de disco con
+> Docker es enorme (10–50x más rápido). Los scripts tampoco funcionan
+> bien en `/mnt/c/` por permisos.
+
+```bash
+cd ~
+git clone https://github.com/sebas1541/neo4j-infinity-graph-example-nosqlbd2uptc.git
+cd neo4j-infinity-graph-example-nosqlbd2uptc
+```
+
+### Paso 5 — Levantar todo
+
+```bash
+./scripts/reset-demo.sh
+```
+
+La primera vez descarga la imagen de Neo4j (~500 MB), puede tardar
+1–3 minutos. Las siguientes ejecuciones son instantáneas.
+
+Abre <http://localhost:7474> en **tu navegador normal de Windows**
+(Chrome, Edge, Firefox — el que sea). WSL 2 reenvía `localhost` al
+host de Windows automáticamente, no hay que configurar puertos.
+
+**Login:** usuario `neo4j`, password `clase2026`.
+
+### Tips útiles para WSL 2
+
+| Truco                                | Comando                                           |
+| ------------------------------------ | ------------------------------------------------- |
+| Abrir el folder en Windows Explorer  | `explorer.exe .` (dentro de WSL)                  |
+| Abrir el proyecto en VS Code         | `code .` (necesita la extensión "WSL" en VS Code) |
+| Ver la home de WSL desde Windows     | En Explorer: `\\wsl$\Ubuntu\home\<tu_usuario>`    |
+| Apagar WSL (libera RAM)              | `wsl --shutdown` (en PowerShell)                  |
+| Reiniciar Docker                     | Click derecho en la ballenita → Restart           |
+| Ver distros instaladas               | `wsl --list --verbose` (en PowerShell)            |
+| Volver a entrar a Ubuntu             | Menú Inicio → "Ubuntu", o `wsl` en PowerShell     |
+
+### Problemas comunes en Windows/WSL
+
+| Problema                                              | Solución                                                                 |
+| ----------------------------------------------------- | ------------------------------------------------------------------------ |
+| `./scripts/start.sh: not found` o `bad interpreter`   | Clonaste en `/mnt/c/`. Borra y vuelve a clonar en `~/`.                  |
+| Scripts con line endings `\r\n`                       | El repo ya trae `.gitattributes` con `eol=lf`. Si igual falla: `git config --global core.autocrlf input` y vuelve a clonar. |
+| `docker: command not found` en WSL                    | Activa WSL Integration en Docker Desktop → Settings → Resources.         |
+| Todo va lentísimo                                     | Estás corriendo desde `/mnt/c/`. Mueve el proyecto a `~/`.               |
+| `http://localhost:7474` no carga desde Windows         | Espera 30s, luego `docker compose ps`. El estado debe ser `healthy`.    |
+| WSL no arranca o da error de kernel                    | En PowerShell admin: `wsl --update`, luego `wsl --shutdown`, vuelve a abrir. |
+| Docker Desktop dice "Engine stopped"                   | Reinicia Docker Desktop. Si persiste: Settings → Troubleshoot → Reset.  |
+| Falla `sudo apt update` con "No connection"            | Reinicia WSL: `wsl --shutdown` en PowerShell, vuelve a abrir Ubuntu.    |
+
+> Después de este setup, **todos los pasos de las secciones 3–9 de
+> este README aplican igual**, simplemente los ejecutas dentro de la
+> terminal de Ubuntu (no de PowerShell).
+
+---
+
+## 3. Quick start (TL;DR)
+
+```bash
+# Clonar (si aún no lo hiciste)
+git clone https://github.com/sebas1541/neo4j-infinity-graph-example-nosqlbd2uptc.git
+cd neo4j-infinity-graph-example-nosqlbd2uptc
 
 # Levanta Neo4j Y carga el dataset (un solo comando)
 ./scripts/reset-demo.sh
 
 # Abre el Browser
-open http://localhost:7474
+open http://localhost:7474        # macOS
+# xdg-open http://localhost:7474  # Linux
+# (Windows/WSL: abre el navegador de Windows manualmente)
 ```
 
 En el login del Browser:
@@ -75,11 +218,12 @@ Deberías ver 26 nodos (22 personas + 4 empresas) conectados.
 
 ---
 
-## 3. Estructura del proyecto
+## 4. Estructura del proyecto
 
 ```
 electiva2/
 ├── docker-compose.yml          # Servicio Neo4j Community 5.26
+├── .gitattributes              # Fuerza line endings LF (Windows-safe)
 ├── README.md                   # Este archivo
 ├── presentation_demo_script.md # Guion paso a paso para la expo
 ├── quick_cheatsheet.md         # Referencia rápida de sintaxis Cypher
@@ -92,15 +236,15 @@ electiva2/
 │   └── 05_graph_traversal_queries.cypher  # shortestPath, FoF, etc.
 └── scripts/
     ├── start.sh              # Levanta el contenedor
-    ├── stop.sh               # Lo detiene (preserva los datos)
+    ├── stop.sh               # Lo detiene (preserva datos)
     ├── reset-demo.sh         # Limpia + recarga el seed
-    ├── clean-demo.sh         # Sólo limpia (deja la base vacía)
+    ├── clean-demo.sh         # Sólo limpia el grafo (lo deja vacío)
     └── run-query-file.sh     # Ejecuta cualquier .cypher en el contenedor
 ```
 
 ---
 
-## 4. El dataset
+## 5. El dataset
 
 ### Esquema
 
@@ -120,17 +264,17 @@ simétrica: en las consultas se usa el patrón sin flecha
 
 Distribución por ciudad:
 
-| Ciudad        | Personas                                                |
-| ------------- | ------------------------------------------------------- |
-| Bogotá (7)    | Ana, Sara, Camila, Andrés, Mariana, Isabella, Andrea    |
-| Medellín (5)  | Luis, Diego, Carlos, Sofía, Ricardo                     |
-| Cali (3)      | Juan, Valentina, Sebastián                              |
-| Barranquilla (2) | Pedro, Paula                                         |
-| Cartagena (1) | Laura                                                   |
-| Bucaramanga (1)| Felipe                                                 |
-| Pereira (1)   | Daniela                                                 |
-| Manizales (1) | Mateo                                                   |
-| Santa Marta (1)| Nicolás                                                |
+| Ciudad           | Personas                                                |
+| ---------------- | ------------------------------------------------------- |
+| Bogotá (7)       | Ana, Sara, Camila, Andrés, Mariana, Isabella, Andrea    |
+| Medellín (5)     | Luis, Diego, Carlos, Sofía, Ricardo                     |
+| Cali (3)         | Juan, Valentina, Sebastián                              |
+| Barranquilla (2) | Pedro, Paula                                            |
+| Cartagena (1)    | Laura                                                   |
+| Bucaramanga (1)  | Felipe                                                  |
+| Pereira (1)      | Daniela                                                 |
+| Manizales (1)    | Mateo                                                   |
+| Santa Marta (1)  | Nicolás                                                 |
 
 ### Empresas (4)
 
@@ -157,14 +301,14 @@ consultas del guion funcionan.
 
 ---
 
-## 5. Walkthrough — probar el ejemplo paso a paso
+## 6. Walkthrough — probar el ejemplo paso a paso
 
 Esta sección te lleva por cada operación (CRUD + traversal) con la
 consulta a pegar y el resultado esperado. Hazlo en el Browser
 (<http://localhost:7474>) o en terminal con
 `./scripts/run-query-file.sh`.
 
-### 5.1 Levantar Neo4j y cargar datos
+### 6.1 Levantar Neo4j y cargar datos
 
 ```bash
 ./scripts/reset-demo.sh
@@ -178,7 +322,7 @@ consulta a pegar y el resultado esperado. Hazlo en el Browser
 OK: Demo cargado. Abre http://localhost:7474 y ejecuta:  MATCH (n) RETURN n
 ```
 
-### 5.2 Verificar que cargó bien
+### 6.2 Verificar que cargó bien
 
 ```bash
 docker compose exec neo4j cypher-shell -u neo4j -p clase2026 \
@@ -194,7 +338,7 @@ Empresa  | 4
 Persona  | 22
 ```
 
-### 5.3 READ — leer datos
+### 6.3 READ — leer datos
 
 #### a) Mostrar todo el grafo (en el Browser)
 
@@ -242,7 +386,7 @@ empleados con su rol.
 ./scripts/run-query-file.sh cypher/02_read_queries.cypher
 ```
 
-### 5.4 UPDATE — actualizar y MERGE
+### 6.4 UPDATE — actualizar y MERGE
 
 ```cypher
 // Cambia la profesión y edad de Ana
@@ -271,7 +415,7 @@ O todo el archivo:
 ./scripts/run-query-file.sh cypher/03_update_queries.cypher
 ```
 
-### 5.5 DELETE — borrar
+### 6.5 DELETE — borrar
 
 ```cypher
 // Borra UNA relación: la amistad Ana - Sara
@@ -293,7 +437,7 @@ Ahora Ana tiene **4 amigos** (Sara desapareció).
 > a **3 saltos** (Ana → Luis → Juan → Pedro) porque el atajo por Sara
 > ya no existe. Es buenísimo para mostrar en la expo.
 
-### 5.6 TRAVERSAL — recorridos de grafo
+### 6.6 TRAVERSAL — recorridos de grafo
 
 #### a) Camino más corto Ana → Pedro
 
@@ -332,7 +476,7 @@ RETURN colega.nombre AS companero, e.nombre AS empresa;
 **Resultado esperado:** 5 compañeros (Ana, Camila, Diego, Mariana,
 Felipe) — todos en ACME.
 
-### 5.7 Volver a empezar
+### 6.7 Volver a empezar
 
 ```bash
 ./scripts/reset-demo.sh
@@ -343,7 +487,7 @@ muchos cambios para "resetear" la demo.
 
 ---
 
-## 6. Lista de comandos
+## 7. Lista de comandos
 
 ### Scripts del proyecto
 
@@ -374,7 +518,7 @@ docker compose exec neo4j cypher-shell -u neo4j -p clase2026 \
 
 ---
 
-## 7. Tips para el Neo4j Browser
+## 8. Tips para el Neo4j Browser
 
 ### Mostrar nombres en lugar de ciudades en los nodos
 
@@ -414,7 +558,10 @@ Luego apretas **Apply**.
 
 ---
 
-## 8. Troubleshooting
+## 9. Troubleshooting
+
+> Si estás en Windows, mira primero los problemas específicos en la
+> [sección 2 — Problemas comunes en Windows/WSL](#problemas-comunes-en-windowswsl).
 
 ### El Browser no carga en `http://localhost:7474`
 
